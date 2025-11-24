@@ -1,0 +1,327 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// ================================
+/// ENUMS PARA LOS CHECK CONSTRAINTS
+/// ================================
+
+enum EstadoCuenta {
+  activo
+  inactivo
+  suspendido
+}
+
+enum EstadoOrganizacion {
+  pendiente
+  verificada
+  rechazada
+}
+
+enum EstadoCampania {
+  abierta
+  cerrada
+}
+
+enum EstadoCertificado {
+  validado
+  no_validado
+  progreso
+}
+
+enum EstadoMulta {
+  pendiente
+  pagada
+  conmutada
+}
+
+enum EstadoTaller {
+  activo
+  inactivo
+  cerrado
+}
+
+/// ================================
+/// MODELOS
+/// ================================
+
+model Rol {
+  IDRol             Int       @id @default(autoincrement())
+  NombreRol         String
+  PermisosAsociados String?   @db.Text
+
+  usuarios Usuario[]
+
+  @@map("Rol")
+}
+
+model Usuario {
+  IDUsuario         Int      @id @default(autoincrement())
+  Nombre            String
+  CorreoElectronico String   @unique
+  IDRol             Int?
+  FechaRegistro     DateTime @default(now())
+  EstadoCuenta      EstadoCuenta @default(activo)
+
+  rol          Rol? @relation(fields: [IDRol], references: [IDRol])
+
+  contrasenias Contrasenias[]
+
+  tutor        Tutor?
+  voluntario   Voluntario?
+
+  organizaciones Organizacion[]
+  resenias      Resenia[]
+  talleres      Talleres[]
+
+  @@map("Usuario")
+}
+
+model Contrasenias {
+  IDContrasenia Int      @id @default(autoincrement())
+  IDUsuario     Int
+  ContrasenaHash String
+  Salt          String
+  FechaCambio   DateTime @default(now())
+  Activa        Boolean  @default(true)
+
+  usuario Usuario @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade)
+
+  @@map("Contrasenias")
+}
+
+model Ubicacion {
+  IDUbicacion            Int          @id @default(autoincrement())
+  Direccion              String?
+  Ciudad                 String?
+  Estado                 String?
+  Pais                   String?
+  CoordenadasGeograficas String?
+
+  organizaciones Organizacion[]
+  campanias      Campania[]
+
+  @@map("Ubicacion")
+}
+
+model Institucion {
+  IDInstitucion       Int      @id @default(autoincrement())
+  Nombre              String
+  Tipo                String    @db.Text
+  Contacto            String?
+  Direccion           String?
+  RequisitosValidacion String? @db.Text
+
+  certificados CertificadoHoras[]
+
+  @@map("Institucion")
+}
+
+model Tutor {
+  IDTutor         Int      @id @default(autoincrement())
+  IDUsuario       Int?     @unique
+  FechaNacimiento DateTime?
+  Nombre          String?
+
+  usuario Usuario? @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade, map: "Tutor_Usuario_fkey")
+
+  voluntariosTutorados Voluntario[] @relation("TutorVoluntario")
+
+  @@map("Tutor")
+}
+
+model Voluntario {
+  IDVoluntario       Int      @id @default(autoincrement())
+  IDUsuario          Int?     @unique
+  IDTutor            Int?
+  FechaNacimiento    DateTime?
+  Nombre             String
+  HorasAcumuladas    Int?     @default(0)
+  InstitucionEducativa String?
+
+  usuario Usuario? @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade, map: "Voluntario_Usuario_fkey")
+
+  tutor Tutor? @relation("TutorVoluntario", fields: [IDTutor], references: [IDTutor], map: "Voluntario_Tutor_fkey")
+
+  registrosParticipacion RegistroParticipacion[]
+  certificados           CertificadoHoras[]
+  multas                 Multa[]
+  logros                 Logro[]
+
+  @@map("Voluntario")
+}
+
+model Organizacion {
+  IDOrganizacion     Int       @id @default(autoincrement())
+  IDUsuario          Int?
+  NombreOrganizacion String
+  TipoOrganizacion   String?
+  Responsable        String?
+  Telefono           String?
+  IDUbicacion        Int?
+  Estado             EstadoOrganizacion @default(pendiente)
+
+  usuario    Usuario?    @relation(fields: [IDUsuario], references: [IDUsuario])
+  ubicacion  Ubicacion?  @relation(fields: [IDUbicacion], references: [IDUbicacion])
+  
+  campanias Campania[]
+  publicaciones Publicacion[]
+  talleres     Talleres[]
+
+  @@map("Organizacion")
+}
+
+model CategoriaCampania {
+  IDCategoria     Int    @id @default(autoincrement())
+  NombreCategoria String?
+  Descripcion     String?
+
+  campanias Campania[]
+
+  @@map("CategoriaCampania")
+}
+
+model Campania {
+  IDCampania      Int      @id @default(autoincrement())
+  IDOrganizacion  Int?
+  Nombre          String?
+  Descripcion     String?
+  FechaInicio     DateTime?
+  FechaFin        DateTime?
+  IDUbicacion     Int?
+  IDCategoria     Int?
+  CupoMaximo      Int?
+  Estado          EstadoCampania @default(abierta)
+
+  organizacion Organizacion?       @relation(fields: [IDOrganizacion], references: [IDOrganizacion])
+  ubicacion    Ubicacion?          @relation(fields: [IDUbicacion], references: [IDUbicacion])
+  categoria    CategoriaCampania?  @relation(fields: [IDCategoria], references: [IDCategoria])
+
+  registrosParticipacion RegistroParticipacion[]
+  certificados           CertificadoHoras[]
+  logros                 Logro[]
+
+  @@map("Campania")
+}
+
+model RegistroParticipacion {
+  IDRegistro        Int      @id @default(autoincrement())
+  IDVoluntario      Int?
+  IDCampania        Int?
+  FechaParticipacion DateTime?
+  HorasTrabajadas   Int?
+  Observaciones     String?
+
+  voluntario Voluntario? @relation(fields: [IDVoluntario], references: [IDVoluntario])
+  campania   Campania?   @relation(fields: [IDCampania], references: [IDCampania])
+
+  certificados CertificadoHoras[]
+
+  @@map("RegistroParticipacion")
+}
+
+model CertificadoHoras {
+  IDCertificado  Int      @id @default(autoincrement())
+  IDRegistro     Int?
+  IDVoluntario   Int?
+  IDCampania     Int?
+  IDInstitucion  Int?
+  HorasTrabajadas Int?
+  FechaEmision    DateTime?
+  Estado          EstadoCertificado @default(progreso)
+
+  registro    RegistroParticipacion? @relation(fields: [IDRegistro], references: [IDRegistro])
+  voluntario  Voluntario?            @relation(fields: [IDVoluntario], references: [IDVoluntario])
+  campania    Campania?              @relation(fields: [IDCampania], references: [IDCampania])
+  institucion Institucion?           @relation(fields: [IDInstitucion], references: [IDInstitucion])
+
+  @@map("CertificadoHoras")
+}
+
+model TabulacionTiposMulta {
+  IDTMultas             Int     @id @default(autoincrement())
+  TipoMulta             String
+  MontoBase             Decimal?
+  RequisitosLiquidarla  String?
+  Descripcion           String?
+  Activa                Boolean @default(true)
+
+  multas Multa[]
+
+  @@map("TabulacionTiposMulta")
+}
+
+model Multa {
+  IDMulta       Int      @id @default(autoincrement())
+  IDVoluntario  Int?
+  Motivo        String?
+  Monto         Decimal?
+  FechaEmision  DateTime?
+  Estado        EstadoMulta @default(pendiente)
+  IDTipoMulta   Int?
+
+  tipoMulta  TabulacionTiposMulta? @relation(fields: [IDTipoMulta], references: [IDTMultas])
+  voluntario Voluntario?           @relation(fields: [IDVoluntario], references: [IDVoluntario])
+
+  @@map("Multa")
+}
+
+model Resenia {
+  IDResenia      Int      @id @default(autoincrement())
+  IDUsuario      Int?
+  TipoComentario String?
+  Contenido      String?
+  Puntuacion     Int?
+  FechaPublicacion DateTime @default(now())
+
+  usuario Usuario? @relation(fields: [IDUsuario], references: [IDUsuario])
+
+  @@map("Resenia")
+}
+
+model Publicacion {
+  IDPublicacion    Int      @id @default(autoincrement())
+  IDOrganizacion   Int?
+  Titulo           String?
+  Contenido        String?
+  FechaPublicacion DateTime @default(now())
+  ImagenAdjunta    String?
+
+  organizacion Organizacion? @relation(fields: [IDOrganizacion], references: [IDOrganizacion])
+
+  @@map("Publicacion")
+}
+
+model Logro {
+  IDLogro      Int      @id @default(autoincrement())
+  IDVoluntario Int?
+  TipoLogro    String?
+  FechaEntrega DateTime?
+  IDCampania   Int?
+
+  voluntario Voluntario? @relation(fields: [IDVoluntario], references: [IDVoluntario])
+  campania   Campania?   @relation(fields: [IDCampania], references: [IDCampania])
+
+  @@map("Logro")
+}
+
+model Talleres {
+  IDTaller       Int   @id @default(autoincrement())
+  Nombre         String
+  Descripcion    String?
+  FechaInicio    DateTime?
+  FechaFin       DateTime?
+  CupoMaximo     Int?
+  IDOrganizacion Int?
+  IDUsuario      Int?
+  Estado         EstadoTaller @default(activo)
+
+  organizacion Organizacion? @relation(fields: [IDOrganizacion], references: [IDOrganizacion])
+  usuario      Usuario?       @relation(fields: [IDUsuario], references: [IDUsuario])
+
+  @@map("Talleres")
+}
