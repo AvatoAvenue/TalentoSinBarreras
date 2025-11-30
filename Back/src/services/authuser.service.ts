@@ -90,14 +90,24 @@ export class AuthUserService {
                 };
             }
 
-            // Obtener ID del rol basado en el nombre
+            // Mapear los roles del frontend a los roles existentes
+            let rolNombre: string;
+            switch(rol) {
+                case 'postulante':
+                case 'tutor':
+                case 'organismo':
+                    rolNombre = "Usuario";
+                    break;
+                default:
+                    return { 
+                        success: false, 
+                        message: "Rol no válido" 
+                    };
+            }
+
             const rolRecord = await prisma.rol.findFirst({
                 where: { 
-                    NombreRol: {
-                        contains: rol === 'postulante' ? 'Voluntario' : 
-                                 rol === 'organismo' ? 'Organizacion' : rol,
-                        mode: 'insensitive'
-                    }
+                    NombreRol: rolNombre
                 }
             });
 
@@ -115,7 +125,7 @@ export class AuthUserService {
             const hashedPassword = await PasswordHashing.hashPassword(password, salt);
 
             // Crear transacción para crear usuario y perfil específico
-            const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+            const result = await prisma.$transaction(async (tx) => {
                 // Crear usuario
                 const newUser = await tx.usuario.create({
                     data: {
@@ -144,8 +154,8 @@ export class AuthUserService {
                         data: {
                             IDUsuario: newUser.IDUsuario,
                             Nombre: nombre,
-                            FechaNacimiento: fechaNacimiento,
-                            InstitucionEducativa: institucionEducativa,
+                            FechaNacimiento: fechaNacimiento || new Date('2000-01-01'),
+                            InstitucionEducativa: institucionEducativa || "Institución por defecto",
                             HorasAcumuladas: 0,
                         }
                     });
@@ -154,7 +164,7 @@ export class AuthUserService {
                         data: {
                             IDUsuario: newUser.IDUsuario,
                             Nombre: nombre,
-                            FechaNacimiento: fechaNacimiento,
+                            FechaNacimiento: fechaNacimiento || new Date('1980-01-01'),
                         }
                     });
                 }

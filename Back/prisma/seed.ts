@@ -1,12 +1,10 @@
 import prisma from "../src/lib/prisma";
+import { PasswordHashing } from "../src/passwordhashing";
 
 async function runSeed() {
   console.log("Iniciando seed...");
 
   await prisma.$transaction(async (tx) => {
-    //
-    // 1. ROLES
-    //
     const [rolAdmin, rolUsuario] = await Promise.all([
       tx.rol.create({
         data: {
@@ -22,15 +20,14 @@ async function runSeed() {
       }),
     ]);
 
-    //
-    // 2. USUARIOS
-    //
     const [userAdmin, userTutor, userVoluntario, userOrg] = await Promise.all([
       tx.usuario.create({
         data: {
           Nombre: "Admin General",
           CorreoElectronico: "admin@example.com",
           IDRol: rolAdmin.IDRol,
+          EstadoCuenta: 'activo',
+          FechaRegistro: new Date(),
         },
       }),
       tx.usuario.create({
@@ -38,6 +35,8 @@ async function runSeed() {
           Nombre: "Tutor Juan",
           CorreoElectronico: "tutor@example.com",
           IDRol: rolUsuario.IDRol,
+          EstadoCuenta: 'activo',
+          FechaRegistro: new Date(),
         },
       }),
       tx.usuario.create({
@@ -45,6 +44,8 @@ async function runSeed() {
           Nombre: "Voluntario Ana",
           CorreoElectronico: "voluntario@example.com",
           IDRol: rolUsuario.IDRol,
+          EstadoCuenta: 'activo',
+          FechaRegistro: new Date(),
         },
       }),
       tx.usuario.create({
@@ -52,36 +53,51 @@ async function runSeed() {
           Nombre: "Organizacion XYZ",
           CorreoElectronico: "org@example.com",
           IDRol: rolUsuario.IDRol,
+          EstadoCuenta: 'activo',
+          FechaRegistro: new Date(),
         },
       }),
     ]);
 
-    //
-    // 3. CONTRASEÑAS
-    //
+    // Regenerar contraseñas con el método corregido
+    const hashAdmin = await PasswordHashing.hashPassword("admin123", PasswordHashing.genSalt());
+    const hashTutor = await PasswordHashing.hashPassword("tutor123", PasswordHashing.genSalt());
+    const hashVol = await PasswordHashing.hashPassword("vol123", PasswordHashing.genSalt());
+    const hashOrg = await PasswordHashing.hashPassword("org123", PasswordHashing.genSalt());
+
     await tx.contrasenias.createMany({
       data: [
         {
           IDUsuario: userAdmin.IDUsuario,
-          ContrasenaHash: "hash123",
-          Salt: "salt123",
+          ContrasenaHash: hashAdmin,
+          Salt: "",
+          Activa: true,
+          FechaCambio: new Date(),
         },
         {
           IDUsuario: userTutor.IDUsuario,
-          ContrasenaHash: "hash456",
-          Salt: "salt456",
+          ContrasenaHash: hashTutor,
+          Salt: "",
+          Activa: true,
+          FechaCambio: new Date(),
         },
         {
           IDUsuario: userVoluntario.IDUsuario,
-          ContrasenaHash: "hash789",
-          Salt: "salt789",
+          ContrasenaHash: hashVol,
+          Salt: "",
+          Activa: true,
+          FechaCambio: new Date(),
+        },
+        {
+          IDUsuario: userOrg.IDUsuario,
+          ContrasenaHash: hashOrg,
+          Salt: "",
+          Activa: true,
+          FechaCambio: new Date(),
         },
       ],
     });
 
-    //
-    // 4. UBICACIÓN
-    //
     const ubicacionCentro = await tx.ubicacion.create({
       data: {
         Direccion: "Av. Central 123",
@@ -92,9 +108,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 5. INSTITUCIÓN
-    //
     const institucionA = await tx.institucion.create({
       data: {
         Nombre: "Instituto Superior",
@@ -105,9 +118,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 6. TUTOR
-    //
     const tutor = await tx.tutor.create({
       data: {
         IDUsuario: userTutor.IDUsuario,
@@ -116,9 +126,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 7. VOLUNTARIO
-    //
     const voluntario = await tx.voluntario.create({
       data: {
         IDUsuario: userVoluntario.IDUsuario,
@@ -130,9 +137,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 8. ORGANIZACIÓN
-    //
     const organizacionA = await tx.organizacion.create({
       data: {
         NombreOrganizacion: "Fundación Manos Unidas",
@@ -145,9 +149,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 9. CATEGORÍA CAMPAÑA
-    //
     const categoriaAmbiental = await tx.categoriaCampania.create({
       data: {
         NombreCategoria: "Ambiental",
@@ -155,9 +156,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 10. CAMPAÑA
-    //
     const campaniaLimpieza = await tx.campania.create({
       data: {
         IDOrganizacion: organizacionA.IDOrganizacion,
@@ -172,9 +170,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 11. REGISTRO PARTICIPACIÓN
-    //
     const registro1 = await tx.registroParticipacion.create({
       data: {
         IDVoluntario: voluntario.IDVoluntario,
@@ -185,9 +180,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 12. CERTIFICADOS
-    //
     await tx.certificadoHoras.create({
       data: {
         IDRegistro: registro1.IDRegistro,
@@ -200,9 +192,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 13. TABULACIÓN MULTAS
-    //
     const tipoMultaA = await tx.tabulacionTiposMulta.create({
       data: {
         TipoMulta: "Inasistencia",
@@ -212,9 +201,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 14. MULTA
-    //
     await tx.multa.create({
       data: {
         IDVoluntario: voluntario.IDVoluntario,
@@ -226,9 +212,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 15. RESEÑAS
-    //
     await tx.resenia.create({
       data: {
         IDUsuario: userVoluntario.IDUsuario,
@@ -238,9 +221,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 16. PUBLICACIONES
-    //
     await tx.publicacion.create({
       data: {
         IDOrganizacion: organizacionA.IDOrganizacion,
@@ -250,9 +230,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 17. LOGROS
-    //
     await tx.logro.create({
       data: {
         IDVoluntario: voluntario.IDVoluntario,
@@ -262,9 +239,6 @@ async function runSeed() {
       },
     });
 
-    //
-    // 18. TALLERES
-    //
     await tx.talleres.create({
       data: {
         Nombre: "Capacitación de Seguridad",
@@ -290,4 +264,3 @@ runSeed()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

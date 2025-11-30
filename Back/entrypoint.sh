@@ -13,8 +13,14 @@ echo "Base de datos lista!"
 echo "Ejecutando migraciones..."
 npx prisma migrate deploy
 
-echo "Ejecutando seed..."
-npx prisma db seed
+if [ ! -f /app/.seed_done ]; then
+  echo "Ejecutando seed por primera vez..."
+  npx prisma db seed
+  touch /app/.seed_done
+else
+  echo "Seed ya ejecutado, saltando..."
+fi
 
 echo "Iniciando servidor..."
 exec "$@"
+

@@ -5,6 +5,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft } from "lucide-react";
+import { AuthApiService } from "../services/authservice";
 
 interface RegistrationPageProps {
   onNavigate: (page: string) => void;
@@ -20,11 +21,29 @@ export function RegistrationPage({ onNavigate }: RegistrationPageProps) {
     role: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Registration data:", formData);
-    alert("Registro enviado exitosamente");
-    onNavigate('dashboard');
+
+    try {
+      const nombre = `${formData.firstName} ${formData.paternalSurname} ${formData.maternalSurname}`;
+
+      const res = await AuthApiService.register({
+        nombre,
+        email: formData.email,
+        password: formData.password,
+        rol: formData.role,
+      });
+
+      if (!res.success) {
+        alert(res.message || "Error al registrar");
+        return;
+      }
+
+      alert("Registro exitoso");
+      onNavigate("login"); // Cambiado a login en lugar de dashboard
+    } catch (error: any) {
+      alert(error.message || "Error en el servidor");
+    }
   };
 
   return (
@@ -43,6 +62,7 @@ export function RegistrationPage({ onNavigate }: RegistrationPageProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            
             <div className="space-y-2">
               <Label htmlFor="firstName">Nombre(s)</Label>
               <Input

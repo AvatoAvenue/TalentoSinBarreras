@@ -4,6 +4,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft } from "lucide-react";
+import { AuthApiService } from "../services/authservice";
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
@@ -15,11 +16,27 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login data:", formData);
-    alert("Inicio de sesión exitoso");
-    onNavigate('dashboard');
+
+    try {
+      const res = await AuthApiService.login({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (!res.success) {
+        alert(res.message || "Credenciales incorrectas");
+        return;
+      }
+
+      localStorage.setItem("user", JSON.stringify(res.data));
+
+      alert("Inicio de sesión exitoso");
+      onNavigate("dashboard");
+    } catch (error: any) {
+      alert(error.message || "Error al iniciar sesión");
+    }
   };
 
   return (
@@ -60,16 +77,6 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="border-gray-300"
               />
-            </div>
-
-            <div className="text-right">
-              <button
-                type="button"
-                className="text-sm text-[#3E7D8C] hover:text-[#0A4E6A] hover:underline"
-                onClick={() => alert("Funcionalidad de recuperación de contraseña")}
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
             </div>
 
             <Button
