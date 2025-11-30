@@ -19,7 +19,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./back:/app
+      - ./back/src:/app/src
+      - ./back/prisma:/app/prisma
     env_file:
       - ./back/.env
     depends_on:
