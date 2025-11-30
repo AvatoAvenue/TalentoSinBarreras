@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LandingPage } from "./components/LandingPage";
 import { RegistrationPage } from "./components/RegistrationPage";
 import { LoginPage } from "./components/LoginPage";
@@ -18,7 +18,7 @@ function AppContent() {
   };
 
   // Redirigir al dashboard si ya está autenticado
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && (currentPage === 'login' || currentPage === 'register' || currentPage === 'landing')) {
       setCurrentPage('dashboard');
     }
