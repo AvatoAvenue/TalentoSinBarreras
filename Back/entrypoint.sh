@@ -11,7 +11,7 @@ done
 echo "Base de datos lista!"
 
 echo "Ejecutando migraciones..."
-npx prisma migrate deploy
+npx prisma migrate dev --name init
 
 if [ ! -f /app/.seed_done ]; then
   echo "Ejecutando seed por primera vez..."

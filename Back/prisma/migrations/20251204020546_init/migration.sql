@@ -16,6 +16,9 @@ CREATE TYPE "EstadoMulta" AS ENUM ('pendiente', 'pagada', 'conmutada');
 -- CreateEnum
 CREATE TYPE "EstadoTaller" AS ENUM ('activo', 'inactivo', 'cerrado');
 
+-- CreateEnum
+CREATE TYPE "TipoDiscapacidad" AS ENUM ('visual', 'auditiva', 'motriz', 'cognitiva', 'multiple', 'ninguna');
+
 -- CreateTable
 CREATE TABLE "Rol" (
     "IDRol" SERIAL NOT NULL,
@@ -33,6 +36,8 @@ CREATE TABLE "Usuario" (
     "IDRol" INTEGER,
     "FechaRegistro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "EstadoCuenta" "EstadoCuenta" NOT NULL DEFAULT 'activo',
+    "Telefono" TEXT,
+    "Biografia" TEXT,
 
     CONSTRAINT "Usuario_pkey" PRIMARY KEY ("IDUsuario")
 );
@@ -79,6 +84,9 @@ CREATE TABLE "Tutor" (
     "IDUsuario" INTEGER,
     "FechaNacimiento" TIMESTAMP(3),
     "Nombre" TEXT,
+    "Parentesco" TEXT,
+    "Telefono" TEXT,
+    "DireccionCompleta" TEXT,
 
     CONSTRAINT "Tutor_pkey" PRIMARY KEY ("IDTutor")
 );
@@ -92,6 +100,9 @@ CREATE TABLE "Voluntario" (
     "Nombre" TEXT NOT NULL,
     "HorasAcumuladas" INTEGER DEFAULT 0,
     "InstitucionEducativa" TEXT,
+    "TipoDiscapacidad" "TipoDiscapacidad" NOT NULL DEFAULT 'ninguna',
+    "AdaptacionesRequeridas" TEXT,
+    "Habilidades" TEXT,
 
     CONSTRAINT "Voluntario_pkey" PRIMARY KEY ("IDVoluntario")
 );
@@ -106,6 +117,9 @@ CREATE TABLE "Organizacion" (
     "Telefono" TEXT,
     "IDUbicacion" INTEGER,
     "Estado" "EstadoOrganizacion" NOT NULL DEFAULT 'pendiente',
+    "CategoriaPrincipal" TEXT,
+    "Descripcion" TEXT,
+    "SitioWeb" TEXT,
 
     CONSTRAINT "Organizacion_pkey" PRIMARY KEY ("IDOrganizacion")
 );

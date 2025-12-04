@@ -45,6 +45,15 @@ enum EstadoTaller {
   cerrado
 }
 
+enum TipoDiscapacidad {
+  visual
+  auditiva
+  motriz
+  cognitiva
+  multiple
+  ninguna
+}
+
 /// ================================
 /// MODELOS
 /// ================================
@@ -66,6 +75,8 @@ model Usuario {
   IDRol             Int?
   FechaRegistro     DateTime @default(now())
   EstadoCuenta      EstadoCuenta @default(activo)
+  Telefono          String?
+  Biografia         String?   @db.Text
 
   rol          Rol? @relation(fields: [IDRol], references: [IDRol])
 
@@ -126,6 +137,9 @@ model Tutor {
   IDUsuario       Int?     @unique
   FechaNacimiento DateTime?
   Nombre          String?
+  Parentesco      String?
+  Telefono        String?
+  DireccionCompleta String?
 
   usuario Usuario? @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade, map: "Tutor_Usuario_fkey")
 
@@ -142,6 +156,9 @@ model Voluntario {
   Nombre             String
   HorasAcumuladas    Int?     @default(0)
   InstitucionEducativa String?
+  TipoDiscapacidad   TipoDiscapacidad @default(ninguna)
+  AdaptacionesRequeridas String?  @db.Text
+  Habilidades        String?  @db.Text
 
   usuario Usuario? @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade, map: "Voluntario_Usuario_fkey")
 
@@ -164,6 +181,9 @@ model Organizacion {
   Telefono           String?
   IDUbicacion        Int?
   Estado             EstadoOrganizacion @default(pendiente)
+  CategoriaPrincipal String?
+  Descripcion        String?  @db.Text
+  SitioWeb           String?
 
   usuario    Usuario?    @relation(fields: [IDUsuario], references: [IDUsuario])
   ubicacion  Ubicacion?  @relation(fields: [IDUbicacion], references: [IDUbicacion])
