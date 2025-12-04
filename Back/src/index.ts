@@ -1,8 +1,10 @@
+// Back/src/index.ts
 import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth";
- import profileRoutes from "./routes/profile";
+import profileRoutes from "./routes/profile";
+import notificationRoutes from "./routes/notifications";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,6 +18,7 @@ app.use(express.json());
 // Rutas
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Ruta de salud
 app.get("/", (req: Request, res: Response) => {

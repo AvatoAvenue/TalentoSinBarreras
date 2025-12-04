@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -19,7 +19,6 @@ import {
   Menu,
   Search,
   User,
-  Bell,
   Heart,
   Filter,
   Check,
@@ -29,8 +28,7 @@ import {
   FileText,
   Star,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "./ui/sheet";
-import { Alert, AlertDescription } from "./ui/alert";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import {
   Select,
   SelectContent,
@@ -56,11 +54,8 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { toast } from "sonner";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
+import { NotificationCenter } from "./NotificationCenter";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Campaign {
   id: number;
@@ -78,35 +73,25 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { user, loading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterLocation, setFilterLocation] = useState("all");
-  const [filterDisability, setFilterDisability] =
-    useState("all");
+  const [filterDisability, setFilterDisability] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [currentView, setCurrentView] = useState<"inicio" | "postulaciones" | "favoritos" | "configuracion">("inicio");
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Campaign interaction states
-  const [likedCampaigns, setLikedCampaigns] = useState<
-    Set<number>
-  >(new Set());
-  const [followedCampaigns, setFollowedCampaigns] = useState<
-    Set<number>
-  >(new Set());
-  const [appliedCampaigns, setAppliedCampaigns] = useState<
-    Set<number>
-  >(new Set());
+  const [likedCampaigns, setLikedCampaigns] = useState<Set<number>>(new Set());
+  const [followedCampaigns, setFollowedCampaigns] = useState<Set<number>>(new Set());
+  const [appliedCampaigns, setAppliedCampaigns] = useState<Set<number>>(new Set());
 
   // Edit/Delete states
-  const [editingCampaign, setEditingCampaign] =
-    useState<Campaign | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] =
-    useState(false);
-  const [campaignToDelete, setCampaignToDelete] = useState<
-    number | null
-  >(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<number | null>(null);
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([
     {
@@ -155,24 +140,32 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
   ]);
 
-  const notifications = [
-    {
-      id: 1,
-      message:
-        "Nueva campaña disponible: Desarrollador Web Inclusivo",
-      time: "Hace 2 horas",
-    },
-    {
-      id: 2,
-      message: "Tu registro fue validado exitosamente",
-      time: "Ayer",
-    },
-    {
-      id: 3,
-      message: "Tienes una nueva recomendación de campaña",
-      time: "Hace 3 días",
-    },
-  ];
+  // Efecto para manejar la autenticación
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        console.log('No hay usuario, redirigiendo al login');
+        onNavigate('landing');
+      } else if (!user.userId || isNaN(user.userId)) {
+        console.error('Usuario sin userId válido:', user);
+        toast.error("Error en los datos del usuario");
+      }
+      setIsLoading(false);
+    }
+  }, [authLoading, user, onNavigate]);
+
+  // Loading state
+  if (isLoading || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0A4E6A]"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const handleCreateCampaign = (newCampaign: any) => {
     const campaign: Campaign = {
@@ -258,6 +251,29 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     setDeleteDialogOpen(true);
   };
 
+  // Manejar clic en notificación
+  const handleNotificationClick = (notification: any) => {
+    console.log('Notificación clickeada:', notification);
+    
+    if (notification.IDCampania) {
+      toast.info(`Navegando a campaña: ${notification.campania?.Nombre || notification.IDCampania}`);
+    }
+
+    switch (notification.Tipo) {
+      case 'certificado_emitido':
+        toast.success('Puedes descargar tu certificado desde tu perfil');
+        break;
+      case 'postulacion_aceptada':
+        toast.success('¡Felicitaciones! Revisa los detalles en tus postulaciones');
+        break;
+      case 'campania_actualizada':
+        toast.info('Revisa los cambios en la campaña');
+        break;
+      default:
+        break;
+    }
+  };
+
   const filteredCampaigns = campaigns.filter((campaign) => {
     // Text search
     const matchesSearch =
@@ -295,9 +311,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       matchesDisability
     );
   });
-
-  const favoriteCampaigns = campaigns.filter((c) => likedCampaigns.has(c.id));
-  const appliedCampaignsList = campaigns.filter((c) => appliedCampaigns.has(c.id));
 
   return (
     <div className="min-h-screen bg-[#F5FAFA]">
@@ -375,38 +388,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative"
-                  >
-                    <Bell className="w-5 h-5 text-[#0A4E6A]" />
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#E86C4B] rounded-full"></span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-4">
-                    <h4 className="font-semibold text-[#0A4E6A]">Notificaciones</h4>
-                    <div className="space-y-3">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className="p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                        >
-                          <p className="text-sm mb-1">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {notification.time}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              
+              {/* Componente de Notificaciones */}
+              <NotificationCenter 
+                userId={user.userId}
+                onNotificationClick={handleNotificationClick}
+              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -434,7 +421,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               />
             </div>
 
-            {/* Advanced Filters */}
+            {/* Filtros */}
             <Collapsible
               open={showFilters}
               onOpenChange={setShowFilters}
@@ -463,12 +450,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">
-                          Todos
-                        </SelectItem>
-                        <SelectItem value="empleo">
-                          Empleo
-                        </SelectItem>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="empleo">Empleo</SelectItem>
                         <SelectItem value="servicio-social">
                           Servicio Social
                         </SelectItem>
@@ -492,12 +475,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">
-                          Todas
-                        </SelectItem>
-                        <SelectItem value="remoto">
-                          Remoto
-                        </SelectItem>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="remoto">Remoto</SelectItem>
                         <SelectItem value="ciudad de méxico">
                           Ciudad de México
                         </SelectItem>
@@ -507,17 +486,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <SelectItem value="monterrey">
                           Monterrey
                         </SelectItem>
-                        <SelectItem value="puebla">
-                          Puebla
-                        </SelectItem>
+                        <SelectItem value="puebla">Puebla</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm">
-                      Adaptaciones
-                    </label>
+                    <label className="text-sm">Adaptaciones</label>
                     <Select
                       value={filterDisability}
                       onValueChange={setFilterDisability}
@@ -526,21 +501,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">
-                          Todas
-                        </SelectItem>
-                        <SelectItem value="visual">
-                          Visual
-                        </SelectItem>
-                        <SelectItem value="auditiva">
-                          Auditiva
-                        </SelectItem>
-                        <SelectItem value="motriz">
-                          Motriz
-                        </SelectItem>
-                        <SelectItem value="cognitiva">
-                          Cognitiva
-                        </SelectItem>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="visual">Visual</SelectItem>
+                        <SelectItem value="auditiva">Auditiva</SelectItem>
+                        <SelectItem value="motriz">Motriz</SelectItem>
+                        <SelectItem value="cognitiva">Cognitiva</SelectItem>
                         <SelectItem value="todas">
                           Sin restricciones
                         </SelectItem>
@@ -557,22 +522,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <Tabs defaultValue="all" className="mb-8">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-8">
             <TabsTrigger value="all">Todas</TabsTrigger>
-            <TabsTrigger value="postulante">
-              Postulante
-            </TabsTrigger>
-            <TabsTrigger value="organismo">
-              Organismo
-            </TabsTrigger>
+            <TabsTrigger value="postulante">Postulante</TabsTrigger>
+            <TabsTrigger value="organismo">Organismo</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Campaigns Section */}
-              <div className="md:col-span-2 space-y-6">
+            <div className="grid md:grid-cols-1 gap-6">
+              <div className="space-y-6">
                 <h2 className="text-[#0A4E6A]">
                   Campañas Activas
                 </h2>
-                <div className="space-y-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredCampaigns.map((campaign) => (
                     <Card
                       key={campaign.id}
@@ -606,7 +566,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-gray-600 mb-4 line-clamp-3">
                           {campaign.description}
                         </p>
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -622,7 +582,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            className={`${
+                            className={`flex-1 ${
                               appliedCampaigns.has(campaign.id)
                                 ? "bg-green-600 hover:bg-green-700"
                                 : "bg-[#E86C4B] hover:bg-[#d45a39]"
@@ -647,6 +607,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                           </Button>
                           <Button
                             variant="outline"
+                            size="icon"
                             className={`${
                               followedCampaigns.has(campaign.id)
                                 ? "border-green-600 text-green-600 bg-green-50"
@@ -659,44 +620,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                             {followedCampaigns.has(
                               campaign.id,
                             ) ? (
-                              <>
-                                <Check className="w-4 h-4 mr-2" />
-                                Siguiendo
-                              </>
+                              <Check className="w-4 h-4" />
                             ) : (
-                              <>
-                                <UserPlus className="w-4 h-4 mr-2" />
-                                Seguir
-                              </>
+                              <UserPlus className="w-4 h-4" />
                             )}
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Notifications Panel */}
-              <div className="space-y-6">
-                <h3 className="text-[#0A4E6A]">
-                  Notificaciones
-                </h3>
-                <div className="space-y-3">
-                  {notifications.map((notification) => (
-                    <Alert
-                      key={notification.id}
-                      className="border-[#E86C4B]/20 bg-white"
-                    >
-                      <AlertDescription>
-                        <p className="text-sm mb-1">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {notification.time}
-                        </p>
-                      </AlertDescription>
-                    </Alert>
                   ))}
                 </div>
               </div>

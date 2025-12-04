@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthApiService, RegisterData } from '../services/authService';
 
 interface User {
-    IDUsuario: number;
+    userId: number;
     userRole: number;
     userName: string;
     roleName?: string;
@@ -21,14 +21,42 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-
+    
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
             try {
                 const parsedUser = JSON.parse(savedUser);
-                parsedUser.IDUsuario = Number(parsedUser.IDUsuario);
-                setUser(parsedUser);
+                console.log('🔍 Usuario parseado del localStorage:', parsedUser);
+                
+                let userId = 0;
+                
+                // Buscar userId en cualquier propiedad posible
+                if (parsedUser.userId && !isNaN(Number(parsedUser.userId))) {
+                    userId = Number(parsedUser.userId);
+                } else if (parsedUser.IDUsuario && !isNaN(Number(parsedUser.IDUsuario))) {
+                    userId = Number(parsedUser.IDUsuario);
+                } else if (parsedUser.id && !isNaN(Number(parsedUser.id))) {
+                    userId = Number(parsedUser.id);
+                }
+                
+                // Si no encontramos un ID válido, limpiar
+                if (userId === 0) {
+                    console.warn('Usuario sin ID válido, limpiando localStorage');
+                    localStorage.removeItem('user');
+                    setUser(null);
+                } else {
+                    const normalizedUser: User = {
+                        userId,
+                        userRole: Number(parsedUser.userRole) || 0,
+                        userName: parsedUser.userName || 'Usuario',
+                        roleName: parsedUser.roleName
+                    };
+                    
+                    console.log('Usuario normalizado:', normalizedUser);
+                    setUser(normalizedUser);
+                    localStorage.setItem('user', JSON.stringify(normalizedUser));
+                }
             } catch (error) {
                 console.error("Error al parsear usuario del localStorage:", error);
                 localStorage.removeItem('user');
@@ -43,24 +71,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log("Resultado del login:", result);
             
             if (result.success && result.data) {
-                const userId = Number(result.data.userId);
+                const userId = Number(result.data.userId || result.data.IDUsuario || 0);
                 
-                if (isNaN(userId)) {
-                    console.error("userId no es un número válido:", result.data.userId);
+                if (isNaN(userId) || userId === 0) {
+                    console.error("userId no es un número válido:", result.data.userId, result.data.IDUsuario);
                     return { 
                         success: false, 
                         message: "Error: ID de usuario inválido" 
                     };
                 }
                 
+                // Crear objeto normalizado
                 const userData: User = {
-                    IDUsuario: userId,
+                    userId,
                     userRole: Number(result.data.userRole),
                     userName: result.data.userName || 'Usuario',
                     roleName: result.data.roleName
                 };
                 
-                console.log("Guardando usuario en localStorage:", userData);
+                console.log("Guardando usuario normalizado:", userData);
                 setUser(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
                 
@@ -125,5 +154,6 @@ export function useAuth() {
     if (context === undefined) {
         throw new Error('useAuth debe ser usado dentro de un AuthProvider');
     }
+    
     return context;
 }

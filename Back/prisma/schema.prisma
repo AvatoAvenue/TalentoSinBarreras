@@ -55,6 +55,29 @@ enum TipoDiscapacidad {
 }
 
 /// ================================
+/// ENUMS PARA NOTIFICACIONES
+/// ================================
+
+enum TipoNotificacion {
+  campania_actualizada
+  campania_aprobada
+  campania_rechazada
+  nueva_postulacion
+  postulacion_aceptada
+  postulacion_rechazada
+  certificado_emitido
+  multa_asignada
+  recordatorio
+  sistema
+}
+
+enum EstadoNotificacion {
+  no_leida
+  leida
+  archivada
+}
+
+/// ================================
 /// MODELOS
 /// ================================
 
@@ -88,6 +111,8 @@ model Usuario {
   organizaciones Organizacion[]
   resenias      Resenia[]
   talleres      Talleres[]
+  
+  notificaciones  Notificacion[]
 
   @@map("Usuario")
 }
@@ -224,6 +249,8 @@ model Campania {
   registrosParticipacion RegistroParticipacion[]
   certificados           CertificadoHoras[]
   logros                 Logro[]
+  
+  notificaciones  Notificacion[]
 
   @@map("Campania")
 }
@@ -240,6 +267,8 @@ model RegistroParticipacion {
   campania   Campania?   @relation(fields: [IDCampania], references: [IDCampania])
 
   certificados CertificadoHoras[]
+  
+  notificaciones  Notificacion[]
 
   @@map("RegistroParticipacion")
 }
@@ -258,6 +287,8 @@ model CertificadoHoras {
   voluntario  Voluntario?            @relation(fields: [IDVoluntario], references: [IDVoluntario])
   campania    Campania?              @relation(fields: [IDCampania], references: [IDCampania])
   institucion Institucion?           @relation(fields: [IDInstitucion], references: [IDInstitucion])
+  
+  notificaciones  Notificacion[]
 
   @@map("CertificadoHoras")
 }
@@ -286,6 +317,8 @@ model Multa {
 
   tipoMulta  TabulacionTiposMulta? @relation(fields: [IDTipoMulta], references: [IDTMultas])
   voluntario Voluntario?           @relation(fields: [IDVoluntario], references: [IDVoluntario])
+  
+  notificaciones  Notificacion[]
 
   @@map("Multa")
 }
@@ -344,4 +377,36 @@ model Talleres {
   usuario      Usuario?       @relation(fields: [IDUsuario], references: [IDUsuario])
 
   @@map("Talleres")
+}
+
+/// ================================
+/// MODELO DE NOTIFICACIONES
+/// ================================
+
+model Notificacion {
+  IDNotificacion  Int      @id @default(autoincrement())
+  IDUsuario       Int
+  Tipo            TipoNotificacion
+  Titulo          String
+  Mensaje         String   @db.Text
+  Estado          EstadoNotificacion @default(no_leida)
+  Metadata        String?  @db.Text 
+  FechaCreacion   DateTime @default(now())
+  FechaLeida      DateTime?
+  
+  // Relaciones opcionales según el tipo
+  IDCampania      Int?
+  IDRegistro      Int?
+  IDCertificado   Int?
+  IDMulta         Int?
+  
+  usuario         Usuario  @relation(fields: [IDUsuario], references: [IDUsuario], onDelete: Cascade)
+  campania        Campania? @relation(fields: [IDCampania], references: [IDCampania], onDelete: Cascade)
+  registro        RegistroParticipacion? @relation(fields: [IDRegistro], references: [IDRegistro], onDelete: Cascade)
+  certificado     CertificadoHoras? @relation(fields: [IDCertificado], references: [IDCertificado], onDelete: Cascade)
+  multa           Multa? @relation(fields: [IDMulta], references: [IDMulta], onDelete: Cascade)
+  
+  @@index([IDUsuario, Estado])
+  @@index([FechaCreacion])
+  @@map("Notificacion")
 }
