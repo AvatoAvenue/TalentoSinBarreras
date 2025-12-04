@@ -2,6 +2,7 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth";
+ import profileRoutes from "./routes/profile";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // Rutas
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Ruta de salud
 app.get("/", (req: Request, res: Response) => {

@@ -25,7 +25,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
-            setUser(JSON.parse(savedUser));
+            try {
+                const parsedUser = JSON.parse(savedUser);
+                parsedUser.IDUsuario = Number(parsedUser.IDUsuario);
+                setUser(parsedUser);
+            } catch (error) {
+                console.error("Error al parsear usuario del localStorage:", error);
+                localStorage.removeItem('user');
+            }
         }
         setLoading(false);
     }, []);
@@ -33,15 +40,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (email: string, password: string) => {
         try {
             const result = await AuthApiService.login({ email, password });
+            console.log("Resultado del login:", result);
             
             if (result.success && result.data) {
+                const userId = Number(result.data.userId);
+                
+                if (isNaN(userId)) {
+                    console.error("userId no es un número válido:", result.data.userId);
+                    return { 
+                        success: false, 
+                        message: "Error: ID de usuario inválido" 
+                    };
+                }
+                
                 const userData: User = {
-                    IDUsuario: result.data.userId,
-                    userRole: result.data.userRole,
+                    IDUsuario: userId,
+                    userRole: Number(result.data.userRole),
                     userName: result.data.userName || 'Usuario',
                     roleName: result.data.roleName
                 };
                 
+                console.log("Guardando usuario en localStorage:", userData);
                 setUser(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
                 
@@ -56,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 };
             }
         } catch (error) {
+            console.error("Error completo en login:", error);
             const message = error instanceof Error ? error.message : "Error de conexión";
             return { 
                 success: false, 
