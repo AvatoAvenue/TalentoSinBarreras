@@ -83,7 +83,6 @@ interface DashboardProps {
 const getRoleFromId = (roleId: number | undefined): 'postulante' | 'organismo' | 'tutor' => {
   if (!roleId) return 'postulante';
   
-  // Mapeo de IDs según tu seed (ajustar según tu base de datos)
   switch(roleId) {
     case 1: // Administrador
       return 'organismo';
@@ -106,8 +105,6 @@ const determineUserRole = (
   userProfile: any
 ): 'postulante' | 'organismo' | 'tutor' => {
   
-  
-  // Estrategia 1: Usar roleName del backend
   if (roleName) {
     const normalized = roleName.toLowerCase();
     if (normalized.includes('voluntario')) return 'postulante';
@@ -116,7 +113,6 @@ const determineUserRole = (
     if (normalized.includes('administrador')) return 'organismo';
   }
   
-  // Estrategia 2: Usar userProfile si está disponible
   if (userProfile?.rol?.NombreRol) {
     const normalized = userProfile.rol.NombreRol.toLowerCase();
     if (normalized.includes('voluntario')) return 'postulante';
@@ -125,12 +121,11 @@ const determineUserRole = (
     if (normalized.includes('administrador')) return 'organismo';
   }
   
-  // Estrategia 3: Usar ID del rol como último recurso
   return getRoleFromId(roleId);
 };
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -140,12 +135,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [currentView, setCurrentView] = useState<"inicio" | "postulaciones" | "favoritos" | "configuracion">("inicio");
 
-  // Campaign interaction states
   const [likedCampaigns, setLikedCampaigns] = useState<Set<number>>(new Set());
   const [followedCampaigns, setFollowedCampaigns] = useState<Set<number>>(new Set());
   const [appliedCampaigns, setAppliedCampaigns] = useState<Set<number>>(new Set());
 
-  // Edit/Delete states
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -206,7 +199,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
   ]);
 
-  // Cargar perfil del usuario si no tiene roleName
   useEffect(() => {
     const loadUserProfile = async () => {
       if (user?.userId && !user.roleName) {
@@ -228,7 +220,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [authLoading, user, onNavigate]);
 
-  // Loading state
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    logout();
+    toast.success("Sesión cerrada exitosamente");
+    onNavigate('landing');
+  };
+
+  // Función para navegar al landing desde el logo
+  const handleNavigateToLanding = () => {
+    if (window.confirm("¿Estás seguro que deseas salir? Se cerrará tu sesión.")) {
+      logout();
+      onNavigate('landing');
+    }
+  };
+
   if (isLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -313,7 +319,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const handleApply = (campaignId: number) => {
     if (!appliedCampaigns.has(campaignId)) {
       setAppliedCampaigns((prev) => new Set(prev).add(campaignId));
-      // Incrementar contador de postulantes
       setCampaigns(campaigns.map(c => 
         c.id === campaignId ? { ...c, applicants: (c.applicants || 0) + 1 } : c
       ));
@@ -323,9 +328,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   };
 
-  // Manejar clic en notificación
   const handleNotificationClick = (notification: any) => {
-    
     if (notification.IDCampania) {
       toast.info(`Navegando a campaña: ${notification.campania?.Nombre || notification.IDCampania}`);
     }
@@ -377,7 +380,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const appliedCampaignsList = campaigns.filter((c) => appliedCampaigns.has(c.id));
   const followedCampaignsList = campaigns.filter((c) => followedCampaigns.has(c.id));
 
-  // Renderizado de contenido según vista de menú lateral
   const renderMainContent = () => {
     if (currentView === "postulaciones") {
       return (
@@ -530,7 +532,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       );
     }
 
-    // Vista principal según el rol
     if (userRole === "organismo") {
       return (
         <div className="space-y-6">
@@ -542,7 +543,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <CreateCampaignDialog onCreateCampaign={handleCreateCampaign} />
           </div>
 
-          {/* Estadísticas */}
           <div className="grid md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -594,7 +594,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </Card>
           </div>
 
-          {/* Mis Campañas */}
           <div>
             <h3 className="text-[#0A4E6A] mb-4">Mis Campañas</h3>
             <div className="grid md:grid-cols-2 gap-4">
@@ -614,7 +613,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   <CardContent>
                     <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
                     
-                    {/* Estadísticas de la campaña */}
                     <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
                       <div className="text-center">
                         <p className="text-xs text-gray-600">Postulantes</p>
@@ -673,7 +671,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <p className="text-gray-600">Acompaña y da seguimiento a las campañas</p>
           </div>
 
-          {/* Campañas que sigo */}
           <div>
             <h3 className="text-[#0A4E6A] mb-4">Campañas en Seguimiento</h3>
             {followedCampaignsList.length === 0 ? (
@@ -705,7 +702,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <CardContent>
                       <p className="text-gray-600 text-sm mb-3">{campaign.description}</p>
                       
-                      {/* Info de seguimiento */}
                       <div className="p-3 bg-blue-50 rounded-lg mb-3">
                         <p className="text-sm text-gray-700">
                           <strong>{campaign.applicants || 0}</strong> postulantes activos
@@ -736,7 +732,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             )}
           </div>
 
-          {/* Todas las campañas disponibles */}
           <div>
             <h3 className="text-[#0A4E6A] mb-4">Campañas Disponibles</h3>
             <div className="space-y-4">
@@ -789,7 +784,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       );
     }
 
-    // Vista de Postulante (por defecto)
     return (
       <div className="space-y-6">
         <h2 className="text-[#0A4E6A]">Oportunidades Disponibles</h2>
@@ -871,7 +865,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     );
   };
 
-  // Función para mostrar el nombre del rol en el badge
   const getRoleDisplayName = () => {
     switch (userRole) {
       case 'postulante':
@@ -887,7 +880,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-[#F5FAFA]">
-      {/* Navbar */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -953,7 +945,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-red-600"
-                        onClick={() => onNavigate("landing")}
+                        onClick={handleLogout}
                       >
                         Cerrar sesión
                       </Button>
@@ -961,12 +953,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   </div>
                 </SheetContent>
               </Sheet>
-              <h2 className="text-[#0A4E6A] cursor-pointer" onClick={() => onNavigate("landing")}>
+              <h2 
+                className="text-[#0A4E6A] cursor-pointer" 
+                onClick={handleNavigateToLanding}
+              >
                 Talento sin Barreras
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              {/* Componente de Notificaciones */}
               <NotificationCenter 
                 userId={user.userId}
                 onNotificationClick={handleNotificationClick}
@@ -980,7 +974,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search Bar - Solo visible en vista inicio */}
         {currentView === "inicio" && (
           <div className="mb-8">
             <div className="max-w-2xl mx-auto space-y-4">
@@ -995,7 +988,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 />
               </div>
 
-              {/* Advanced Filters */}
               <Collapsible open={showFilters} onOpenChange={setShowFilters}>
                 <div className="flex justify-center">
                   <CollapsibleTrigger asChild>
@@ -1063,11 +1055,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </div>
         )}
 
-        {/* Contenido principal según vista */}
         {renderMainContent()}
       </div>
 
-      {/* Edit Campaign Dialog */}
       <EditCampaignDialog
         campaign={editingCampaign}
         open={editDialogOpen}
@@ -1075,7 +1065,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         onEditCampaign={handleEditCampaign}
       />
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

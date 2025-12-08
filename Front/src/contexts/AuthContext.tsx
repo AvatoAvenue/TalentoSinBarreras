@@ -27,7 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedUser) {
             try {
                 const parsedUser = JSON.parse(savedUser);
-                console.log('🔍 Usuario parseado del localStorage:', parsedUser);
                 
                 let userId = 0;
                 
@@ -53,13 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         roleName: parsedUser.roleName
                     };
                     
-                    console.log('Usuario normalizado:', normalizedUser);
                     setUser(normalizedUser);
-                    localStorage.setItem('user', JSON.stringify(normalizedUser));
                 }
             } catch (error) {
                 console.error("Error al parsear usuario del localStorage:", error);
                 localStorage.removeItem('user');
+                setUser(null);
             }
         }
         setLoading(false);
@@ -68,7 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = async (email: string, password: string) => {
         try {
             const result = await AuthApiService.login({ email, password });
-            console.log("Resultado del login:", result);
             
             if (result.success && result.data) {
                 const userId = Number(result.data.userId || result.data.IDUsuario || 0);
@@ -89,7 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     roleName: result.data.roleName
                 };
                 
-                console.log("Guardando usuario normalizado:", userData);
                 setUser(userData);
                 localStorage.setItem('user', JSON.stringify(userData));
                 
@@ -129,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 };
             }
         } catch (error) {
+            console.error("Error en registro:", error);
             const message = error instanceof Error ? error.message : "Error de conexión durante el registro";
             return { 
                 success: false, 
@@ -138,8 +135,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
+        
+        // Limpiar estado
         setUser(null);
+        
+        // Limpiar localStorage
         localStorage.removeItem('user');
+        
+        // Verificar que se limpió correctamente
+        const checkStorage = localStorage.getItem('user');
+        if (checkStorage) {
+            console.error('Error: localStorage no se limpió correctamente');
+            // Intentar limpiar nuevamente
+            localStorage.clear();
+        } else {
+        }
     };
 
     return (
