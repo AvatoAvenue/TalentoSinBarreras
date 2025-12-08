@@ -5,98 +5,131 @@ async function runSeed() {
   console.log("Iniciando seed...");
 
   await prisma.$transaction(async (tx) => {
-    const [rolAdmin, rolUsuario] = await Promise.all([
-      tx.rol.create({
-        data: {
-          NombreRol: "Administrador",
-          PermisosAsociados: "gestion_total",
-        },
-      }),
-      tx.rol.create({
-        data: {
-          NombreRol: "Usuario",
-          PermisosAsociados: "uso_basico",
-        },
-      }),
+    // Buscar roles existentes primero
+    const existingRoles = await tx.rol.findMany();
+    
+    // Mapa de roles necesarios
+    const requiredRoles = [
+      { nombre: "Administrador", permisos: "gestion_total" },
+      { nombre: "Tutor", permisos: "gestion_tutorados" },
+      { nombre: "Voluntario", permisos: "participacion_campanias" },
+      { nombre: "Organización", permisos: "gestion_campanias" },
+    ];
+
+    const roles: Record<string, any> = {};
+
+    // Para cada rol requerido, buscar si existe o crearlo
+    for (const reqRole of requiredRoles) {
+      let existingRole = existingRoles.find(r => r.NombreRol === reqRole.nombre);
+      
+      if (!existingRole) {
+        existingRole = await tx.rol.create({
+          data: {
+            NombreRol: reqRole.nombre,
+            PermisosAsociados: reqRole.permisos,
+          },
+        });
+        console.log(`Creado rol: ${reqRole.nombre} con ID: ${existingRole.IDRol}`);
+      } else {
+        console.log(`Usando rol existente: ${reqRole.nombre} con ID: ${existingRole.IDRol}`);
+      }
+      
+      roles[reqRole.nombre] = existingRole;
+    }
+
+    const [existingAdmin, existingTutor, existingVoluntario, existingOrg, existingPostulante] = await Promise.all([
+      tx.usuario.findUnique({ where: { CorreoElectronico: "admin@example.com" } }),
+      tx.usuario.findUnique({ where: { CorreoElectronico: "tutor@example.com" } }),
+      tx.usuario.findUnique({ where: { CorreoElectronico: "voluntario@example.com" } }),
+      tx.usuario.findUnique({ where: { CorreoElectronico: "org@example.com" } }),
+      tx.usuario.findUnique({ where: { CorreoElectronico: "postulante@example.com" } }),
     ]);
 
-    const [userAdmin, userTutor, userVoluntario, userOrg] = await Promise.all([
-      tx.usuario.create({
+    const [userAdmin, userTutor, userVoluntario, userOrg, userPostulante] = await Promise.all([
+      existingAdmin ? Promise.resolve(existingAdmin) : tx.usuario.create({
         data: {
           Nombre: "Admin General",
           CorreoElectronico: "admin@example.com",
-          IDRol: rolAdmin.IDRol,
+          IDRol: roles["Administrador"].IDRol,
           EstadoCuenta: 'activo',
           FechaRegistro: new Date(),
         },
       }),
-      tx.usuario.create({
+      existingTutor ? Promise.resolve(existingTutor) : tx.usuario.create({
         data: {
           Nombre: "Tutor Juan",
           CorreoElectronico: "tutor@example.com",
-          IDRol: rolUsuario.IDRol,
+          IDRol: roles["Tutor"].IDRol,
           EstadoCuenta: 'activo',
           FechaRegistro: new Date(),
         },
       }),
-      tx.usuario.create({
+      existingVoluntario ? Promise.resolve(existingVoluntario) : tx.usuario.create({
         data: {
           Nombre: "Voluntario Ana",
           CorreoElectronico: "voluntario@example.com",
-          IDRol: rolUsuario.IDRol,
+          IDRol: roles["Voluntario"].IDRol,
           EstadoCuenta: 'activo',
           FechaRegistro: new Date(),
         },
       }),
-      tx.usuario.create({
+      existingOrg ? Promise.resolve(existingOrg) : tx.usuario.create({
         data: {
-          Nombre: "Organizacion XYZ",
+          Nombre: "Organización XYZ",
           CorreoElectronico: "org@example.com",
-          IDRol: rolUsuario.IDRol,
+          IDRol: roles["Organización"].IDRol,
+          EstadoCuenta: 'activo',
+          FechaRegistro: new Date(),
+        },
+      }),
+      existingPostulante ? Promise.resolve(existingPostulante) : tx.usuario.create({
+        data: {
+          Nombre: "Postulante Pedro",
+          CorreoElectronico: "postulante@example.com",
+          IDRol: roles["Voluntario"].IDRol,
           EstadoCuenta: 'activo',
           FechaRegistro: new Date(),
         },
       }),
     ]);
 
-    // Regenerar contraseñas con el método corregido
+    // Resto del seed sin cambios...
     const hashAdmin = await PasswordHashing.hashPassword("admin123", PasswordHashing.genSalt());
     const hashTutor = await PasswordHashing.hashPassword("tutor123", PasswordHashing.genSalt());
     const hashVol = await PasswordHashing.hashPassword("vol123", PasswordHashing.genSalt());
     const hashOrg = await PasswordHashing.hashPassword("org123", PasswordHashing.genSalt());
+    const hashPostulante = await PasswordHashing.hashPassword("post123", PasswordHashing.genSalt());
 
-    await tx.contrasenias.createMany({
-      data: [
-        {
-          IDUsuario: userAdmin.IDUsuario,
-          ContrasenaHash: hashAdmin,
-          Salt: "",
-          Activa: true,
-          FechaCambio: new Date(),
-        },
-        {
-          IDUsuario: userTutor.IDUsuario,
-          ContrasenaHash: hashTutor,
-          Salt: "",
-          Activa: true,
-          FechaCambio: new Date(),
-        },
-        {
-          IDUsuario: userVoluntario.IDUsuario,
-          ContrasenaHash: hashVol,
-          Salt: "",
-          Activa: true,
-          FechaCambio: new Date(),
-        },
-        {
-          IDUsuario: userOrg.IDUsuario,
-          ContrasenaHash: hashOrg,
-          Salt: "",
-          Activa: true,
-          FechaCambio: new Date(),
-        },
-      ],
+    // Verificar y crear contraseñas solo si no existen
+    const existingPasswords = await tx.contrasenias.findMany({
+      where: {
+        IDUsuario: {
+          in: [userAdmin.IDUsuario, userTutor.IDUsuario, userVoluntario.IDUsuario, userOrg.IDUsuario, userPostulante.IDUsuario]
+        }
+      }
     });
+
+    const usersToCreatePassword = [
+      { id: userAdmin.IDUsuario, hash: hashAdmin, exists: existingPasswords.some(p => p.IDUsuario === userAdmin.IDUsuario) },
+      { id: userTutor.IDUsuario, hash: hashTutor, exists: existingPasswords.some(p => p.IDUsuario === userTutor.IDUsuario) },
+      { id: userVoluntario.IDUsuario, hash: hashVol, exists: existingPasswords.some(p => p.IDUsuario === userVoluntario.IDUsuario) },
+      { id: userOrg.IDUsuario, hash: hashOrg, exists: existingPasswords.some(p => p.IDUsuario === userOrg.IDUsuario) },
+      { id: userPostulante.IDUsuario, hash: hashPostulante, exists: existingPasswords.some(p => p.IDUsuario === userPostulante.IDUsuario) },
+    ];
+
+    const passwordsToCreate = usersToCreatePassword.filter(u => !u.exists);
+
+    if (passwordsToCreate.length > 0) {
+      await tx.contrasenias.createMany({
+        data: passwordsToCreate.map(user => ({
+          IDUsuario: user.id,
+          ContrasenaHash: user.hash,
+          Salt: "",
+          Activa: true,
+          FechaCambio: new Date(),
+        })),
+      });
+    }
 
     const ubicacionCentro = await tx.ubicacion.create({
       data: {
@@ -134,6 +167,18 @@ async function runSeed() {
         FechaNacimiento: new Date("2001-03-20"),
         HorasAcumuladas: 10,
         InstitucionEducativa: "Universidad Nacional",
+        TipoDiscapacidad: "ninguna",
+      },
+    });
+
+    const postulante = await tx.voluntario.create({
+      data: {
+        IDUsuario: userPostulante.IDUsuario,
+        Nombre: "Postulante Pedro",
+        FechaNacimiento: new Date("2002-01-15"),
+        HorasAcumuladas: 0,
+        InstitucionEducativa: "Colegio Nacional",
+        TipoDiscapacidad: "ninguna",
       },
     });
 
