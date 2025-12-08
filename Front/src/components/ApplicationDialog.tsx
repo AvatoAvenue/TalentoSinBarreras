@@ -22,11 +22,14 @@ import {
   SelectValue,
 } from "./ui/select";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 interface ApplicationDialogProps {
   campaign: Campaign | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onApply: (campaignId: number, applicationData: any) => void;
+  userId: number; // Solo userId, no voluntarioId
 }
 
 export function ApplicationDialog({
@@ -34,6 +37,7 @@ export function ApplicationDialog({
   open,
   onOpenChange,
   onApply,
+  userId,
 }: ApplicationDialogProps) {
   const [formData, setFormData] = useState({
     motivationLetter: "",
@@ -52,27 +56,35 @@ export function ApplicationDialog({
     const file = e.target.files?.[0];
     if (file && file.type === "application/pdf") {
       setCvFile(file);
+      toast.success("Archivo PDF cargado correctamente");
     } else {
       toast.error("Por favor, sube un archivo PDF");
     }
   };
 
   const handleSubmit = async () => {
-    if (!campaign) return;
+    console.log("DEBUG: Iniciando envío de postulación...");
+    console.log("DEBUG:", { campaign, userId, formData });
+    
+    if (!campaign || !userId) {
+      console.error("DEBUG: Falta campaign o userId");
+      toast.error("Error: Faltan datos necesarios");
+      return;
+    }
 
-    // Validacion
+    // Validaciones
     if (!formData.motivationLetter.trim()) {
       toast.error("Por favor, escribe una carta de motivación");
       return;
     }
 
-    if (!formData.experience.trim()) {
-      toast.error("Por favor, describe tu experiencia");
+    if (formData.motivationLetter.length < 50) {
+      toast.error("La carta de motivación debe tener al menos 50 caracteres");
       return;
     }
 
-    if (!cvFile) {
-      toast.error("Por favor, sube tu CV en formato PDF");
+    if (!formData.experience.trim()) {
+      toast.error("Por favor, describe tu experiencia");
       return;
     }
 
@@ -84,40 +96,62 @@ export function ApplicationDialog({
     setIsSubmitting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const applicationData = {
-        ...formData,
-        cvFileName: cvFile.name,
-        cvSize: cvFile.size,
-        appliedDate: new Date().toISOString(),
-        campaignId: campaign.id,
-        campaignTitle: campaign.title,
-      };
-
-      const applications = JSON.parse(localStorage.getItem("user_applications") || "[]");
-      applications.push({
-        id: Date.now(),
-        campaignId: campaign.id,
-        data: applicationData,
-        status: "pending",
-        appliedAt: new Date().toISOString(),
+      console.log("DEBUG: Enviando a:", `${API_BASE_URL}/postulaciones`);
+      console.log("DEBUG: Datos a enviar:", {
+        userId: userId,
+        idCampania: campaign.id,
+        cartaMotivacion: formData.motivationLetter,
+        experiencia: formData.experience,
+        disponibilidad: formData.availability,
+        cvFileName: cvFile?.name || "cv.pdf",
       });
-      localStorage.setItem("user_applications", JSON.stringify(applications));
 
-      onApply(campaign.id, applicationData);
-      toast.success("¡Postulación enviada exitosamente!");
-      onOpenChange(false);
-
-      setFormData({
-        motivationLetter: "",
-        experience: "",
-        availability: "full-time",
-        acceptTerms: false,
+      const response = await fetch(`${API_BASE_URL}/postulaciones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          idCampania: campaign.id,
+          cartaMotivacion: formData.motivationLetter,
+          experiencia: formData.experience,
+          disponibilidad: formData.availability,
+          cvFileName: cvFile?.name || "cv.pdf",
+        }),
       });
-      setCvFile(null);
+
+      console.log("DEBUG: Response status:", response.status);
+      const data = await response.json();
+      console.log("DEBUG: Response data:", data);
+
+      if (data.success) {
+        // Notificar al componente padre
+        onApply(campaign.id, {
+          ...formData,
+          cvFileName: cvFile?.name || "cv.pdf",
+          cvSize: cvFile?.size || 0,
+          appliedDate: new Date().toISOString(),
+        });
+
+        toast.success("¡Postulación enviada exitosamente!");
+        onOpenChange(false);
+
+        // Resetear formulario
+        setFormData({
+          motivationLetter: "",
+          experience: "",
+          availability: "full-time",
+          acceptTerms: false,
+        });
+        setCvFile(null);
+      } else {
+        console.error("DEBUG: Error del backend:", data.message);
+        toast.error(data.message || "Error al enviar la postulación");
+      }
     } catch (error) {
-      toast.error("Error al enviar la postulación");
+      console.error("DEBUG: Error de conexión:", error);
+      toast.error("Error de conexión al enviar la postulación");
     } finally {
       setIsSubmitting(false);
     }
@@ -128,7 +162,7 @@ export function ApplicationDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[#0A4E6A]">
-            Postularse a: {campaign?.title}
+            Postularse a: {campaign?.title || "Campaña"}
           </DialogTitle>
           <DialogDescription>
             Completa el formulario para postularte a esta campaña. Todos los campos son requeridos.
@@ -137,18 +171,20 @@ export function ApplicationDialog({
 
         <div className="space-y-6 py-4">
           {/* Información de la campaña */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-[#0A4E6A] mb-2">Información de la campaña</h4>
-            <p className="text-sm text-gray-600 mb-1">
-              <strong>Organización:</strong> {campaign?.organization}
-            </p>
-            <p className="text-sm text-gray-600 mb-1">
-              <strong>Ubicación:</strong> {campaign?.location}
-            </p>
-            <p className="text-sm text-gray-600">
-              <strong>Tipo:</strong> {campaign?.type}
-            </p>
-          </div>
+          {campaign && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-[#0A4E6A] mb-2">Información de la campaña</h4>
+              <p className="text-sm text-gray-600 mb-1">
+                <strong>Organización:</strong> {campaign.organization}
+              </p>
+              <p className="text-sm text-gray-600 mb-1">
+                <strong>Ubicación:</strong> {campaign.location}
+              </p>
+              <p className="text-sm text-gray-600">
+                <strong>Tipo:</strong> {campaign.type}
+              </p>
+            </div>
+          )}
 
           {/* Carta de motivación */}
           <div className="space-y-2">
@@ -160,9 +196,10 @@ export function ApplicationDialog({
               onChange={(e) => handleInputChange("motivationLetter", e.target.value)}
               rows={4}
               className="resize-none"
+              disabled={isSubmitting}
             />
-            <p className="text-xs text-gray-500">
-              Mínimo 200 caracteres. Actual: {formData.motivationLetter.length}
+            <p className={`text-xs ${formData.motivationLetter.length < 50 ? 'text-red-500' : 'text-gray-500'}`}>
+              Mínimo 50 caracteres. Actual: {formData.motivationLetter.length}
             </p>
           </div>
 
@@ -175,6 +212,7 @@ export function ApplicationDialog({
               value={formData.experience}
               onChange={(e) => handleInputChange("experience", e.target.value)}
               rows={3}
+              disabled={isSubmitting}
             />
           </div>
 
@@ -184,6 +222,7 @@ export function ApplicationDialog({
             <Select
               value={formData.availability}
               onValueChange={(value) => handleInputChange("availability", value)}
+              disabled={isSubmitting}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona tu disponibilidad" />
@@ -207,6 +246,7 @@ export function ApplicationDialog({
                 accept=".pdf"
                 onChange={handleFileChange}
                 className="flex-1"
+                disabled={isSubmitting}
               />
               {cvFile && (
                 <span className="text-sm text-green-600">
@@ -225,6 +265,7 @@ export function ApplicationDialog({
               id="terms"
               checked={formData.acceptTerms}
               onCheckedChange={(checked) => handleInputChange("acceptTerms", checked)}
+              disabled={isSubmitting}
             />
             <Label htmlFor="terms" className="text-sm">
               Acepto los términos y condiciones, y autorizo el tratamiento de mis datos personales
@@ -237,9 +278,9 @@ export function ApplicationDialog({
             <h4 className="font-medium text-blue-800 mb-2">Información importante</h4>
             <ul className="text-sm text-blue-700 space-y-1 list-disc pl-4">
               <li>Recibirás una confirmación por correo electrónico</li>
-              <li>El proceso de selección puede tomar de 2 a 3 semanas</li>
-              <li>Puedes dar seguimiento a tu postulación en "Mis Postulaciones"</li>
-              <li>Para cualquier duda, contacta a: contacto@talentsinbarreras.org</li>
+              <li>La organización revisará tu postulación</li>
+              <li>Recibirás notificaciones sobre el estado de tu postulación</li>
+              <li>Puedes dar seguimiento en "Mis Postulaciones"</li>
             </ul>
           </div>
         </div>
@@ -247,13 +288,19 @@ export function ApplicationDialog({
         <DialogFooter className="gap-2 sm:gap-0">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              console.log("Cancelando...");
+              onOpenChange(false);
+            }}
             disabled={isSubmitting}
           >
             Cancelar
           </Button>
           <Button
-            onClick={handleSubmit}
+            onClick={() => {
+              console.log("Botón de enviar clickeado");
+              handleSubmit();
+            }}
             disabled={isSubmitting}
             className="bg-[#E86C4B] hover:bg-[#d45a39] text-white"
           >

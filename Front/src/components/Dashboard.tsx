@@ -64,6 +64,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { AuthApiService } from "../services/authservice";
 import { ApplicationDialog } from "./ApplicationDialog";
 import { CampaignDetailsDialog } from "./CampaignDetailsDialog";
+import { PostulacionesManagement } from "./PostulacionesManagement"; // AGREGADO
 
 interface Campaign {
   id: number;
@@ -140,7 +141,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [filterLocation, setFilterLocation] = useState("all");
   const [filterDisability, setFilterDisability] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const [currentView, setCurrentView] = useState<"inicio" | "postulaciones" | "favoritos" | "configuracion">("inicio");
+  const [currentView, setCurrentView] = useState<"inicio" | "postulaciones" | "favoritos" | "configuracion">("inicio"); // AGREGADO
 
   // Campaign interaction states
   const [likedCampaigns, setLikedCampaigns] = useState<Set<number>>(new Set());
@@ -510,6 +511,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
   // Renderizado de contenido según vista de menú lateral
   const renderMainContent = () => {
+    // AGREGADO: Vista de postulaciones para organismo
+    if (currentView === "postulaciones" && userRole === "organismo") {
+      return <PostulacionesManagement userId={user.userId} />;
+    }
+
+    // Si es vista de postulaciones de voluntario
     if (currentView === "postulaciones") {
       return (
         <div className="space-y-6">
@@ -1189,6 +1196,20 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <Home className="w-4 h-4 mr-2" />
                         Inicio
                       </Button>
+
+                      {/* AGREGADO PARA ORGANISMOS */}
+                      {userRole === "organismo" && (
+                        <Button
+                          variant={currentView === "postulaciones" ? "secondary" : "ghost"}
+                          className="w-full justify-start"
+                          onClick={() => setCurrentView("postulaciones")}
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Postulaciones Recibidas
+                        </Button>
+                      )}
+
+                      {/* BOTÓN EXISTENTE PARA VOLUNTARIOS */}
                       {userRole === "postulante" && (
                         <Button
                           variant={currentView === "postulaciones" ? "secondary" : "ghost"}
@@ -1204,6 +1225,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                           )}
                         </Button>
                       )}
+
                       <Button
                         variant={currentView === "favoritos" ? "secondary" : "ghost"}
                         className="w-full justify-start"
@@ -1217,6 +1239,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                           </Badge>
                         )}
                       </Button>
+                      
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -1225,6 +1248,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <User className="w-4 h-4 mr-2" />
                         Mi Perfil
                       </Button>
+                      
                       <Button
                         variant={currentView === "configuracion" ? "secondary" : "ghost"}
                         className="w-full justify-start"
@@ -1233,6 +1257,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         <Settings className="w-4 h-4 mr-2" />
                         Configuración
                       </Button>
+                      
                       <div className="pt-4 border-t">
                         <Button
                           variant="ghost"
@@ -1397,6 +1422,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         open={applicationDialogOpen}
         onOpenChange={setApplicationDialogOpen}
         onApply={handleApplicationSubmit}
+        userId={user.userId}
       />
 
       {/* Campaign Details Dialog */}

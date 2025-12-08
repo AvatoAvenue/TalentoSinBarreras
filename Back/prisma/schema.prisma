@@ -54,6 +54,13 @@ enum TipoDiscapacidad {
   ninguna
 }
 
+enum EstadoPostulacion {
+  pendiente
+  en_revision
+  aceptada
+  rechazada
+}
+
 /// ================================
 /// ENUMS PARA NOTIFICACIONES
 /// ================================
@@ -193,6 +200,7 @@ model Voluntario {
   certificados           CertificadoHoras[]
   multas                 Multa[]
   logros                 Logro[]
+  postulaciones Postulacion[]
 
   @@map("Voluntario")
 }
@@ -251,6 +259,7 @@ model Campania {
   logros                 Logro[]
   
   notificaciones  Notificacion[]
+  postulaciones Postulacion[]
 
   @@map("Campania")
 }
@@ -271,6 +280,29 @@ model RegistroParticipacion {
   notificaciones  Notificacion[]
 
   @@map("RegistroParticipacion")
+}
+
+model Postulacion {
+  IDPostulacion       Int      @id @default(autoincrement())
+  IDVoluntario        Int
+  IDCampania          Int
+  CartaMotivacion     String   @db.Text
+  Experiencia         String   @db.Text
+  Disponibilidad      String
+  CVFileName          String?
+  Estado              EstadoPostulacion @default(pendiente)
+  FechaPostulacion    DateTime @default(now())
+  FechaRespuesta      DateTime?
+  MotivoRechazo       String?  @db.Text
+  NotasOrganizacion   String?  @db.Text
+  
+  voluntario          Voluntario @relation(fields: [IDVoluntario], references: [IDVoluntario], onDelete: Cascade)
+  campania            Campania   @relation(fields: [IDCampania], references: [IDCampania], onDelete: Cascade)
+  
+  @@index([IDVoluntario])
+  @@index([IDCampania])
+  @@index([Estado])
+  @@map("Postulacion")
 }
 
 model CertificadoHoras {

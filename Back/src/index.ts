@@ -5,6 +5,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth";
 import profileRoutes from "./routes/profile";
 import notificationRoutes from "./routes/notifications";
+import postulacionesRoutes from "./routes/postulaciones";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/postulaciones", postulacionesRoutes);
 
 // Ruta de salud
 app.get("/", (req: Request, res: Response) => {

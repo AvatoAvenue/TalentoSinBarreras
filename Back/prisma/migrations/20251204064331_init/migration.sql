@@ -19,6 +19,12 @@ CREATE TYPE "EstadoTaller" AS ENUM ('activo', 'inactivo', 'cerrado');
 -- CreateEnum
 CREATE TYPE "TipoDiscapacidad" AS ENUM ('visual', 'auditiva', 'motriz', 'cognitiva', 'multiple', 'ninguna');
 
+-- CreateEnum
+CREATE TYPE "TipoNotificacion" AS ENUM ('campania_actualizada', 'campania_aprobada', 'campania_rechazada', 'nueva_postulacion', 'postulacion_aceptada', 'postulacion_rechazada', 'certificado_emitido', 'multa_asignada', 'recordatorio', 'sistema');
+
+-- CreateEnum
+CREATE TYPE "EstadoNotificacion" AS ENUM ('no_leida', 'leida', 'archivada');
+
 -- CreateTable
 CREATE TABLE "Rol" (
     "IDRol" SERIAL NOT NULL,
@@ -250,6 +256,25 @@ CREATE TABLE "Talleres" (
     CONSTRAINT "Talleres_pkey" PRIMARY KEY ("IDTaller")
 );
 
+-- CreateTable
+CREATE TABLE "Notificacion" (
+    "IDNotificacion" SERIAL NOT NULL,
+    "IDUsuario" INTEGER NOT NULL,
+    "Tipo" "TipoNotificacion" NOT NULL,
+    "Titulo" TEXT NOT NULL,
+    "Mensaje" TEXT NOT NULL,
+    "Estado" "EstadoNotificacion" NOT NULL DEFAULT 'no_leida',
+    "Metadata" TEXT,
+    "FechaCreacion" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "FechaLeida" TIMESTAMP(3),
+    "IDCampania" INTEGER,
+    "IDRegistro" INTEGER,
+    "IDCertificado" INTEGER,
+    "IDMulta" INTEGER,
+
+    CONSTRAINT "Notificacion_pkey" PRIMARY KEY ("IDNotificacion")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Usuario_CorreoElectronico_key" ON "Usuario"("CorreoElectronico");
 
@@ -258,6 +283,12 @@ CREATE UNIQUE INDEX "Tutor_IDUsuario_key" ON "Tutor"("IDUsuario");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Voluntario_IDUsuario_key" ON "Voluntario"("IDUsuario");
+
+-- CreateIndex
+CREATE INDEX "Notificacion_IDUsuario_Estado_idx" ON "Notificacion"("IDUsuario", "Estado");
+
+-- CreateIndex
+CREATE INDEX "Notificacion_FechaCreacion_idx" ON "Notificacion"("FechaCreacion");
 
 -- AddForeignKey
 ALTER TABLE "Usuario" ADD CONSTRAINT "Usuario_IDRol_fkey" FOREIGN KEY ("IDRol") REFERENCES "Rol"("IDRol") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -330,3 +361,18 @@ ALTER TABLE "Talleres" ADD CONSTRAINT "Talleres_IDOrganizacion_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "Talleres" ADD CONSTRAINT "Talleres_IDUsuario_fkey" FOREIGN KEY ("IDUsuario") REFERENCES "Usuario"("IDUsuario") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notificacion" ADD CONSTRAINT "Notificacion_IDUsuario_fkey" FOREIGN KEY ("IDUsuario") REFERENCES "Usuario"("IDUsuario") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notificacion" ADD CONSTRAINT "Notificacion_IDCampania_fkey" FOREIGN KEY ("IDCampania") REFERENCES "Campania"("IDCampania") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notificacion" ADD CONSTRAINT "Notificacion_IDRegistro_fkey" FOREIGN KEY ("IDRegistro") REFERENCES "RegistroParticipacion"("IDRegistro") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notificacion" ADD CONSTRAINT "Notificacion_IDCertificado_fkey" FOREIGN KEY ("IDCertificado") REFERENCES "CertificadoHoras"("IDCertificado") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notificacion" ADD CONSTRAINT "Notificacion_IDMulta_fkey" FOREIGN KEY ("IDMulta") REFERENCES "Multa"("IDMulta") ON DELETE CASCADE ON UPDATE CASCADE;
