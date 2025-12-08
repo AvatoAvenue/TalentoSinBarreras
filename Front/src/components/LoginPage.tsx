@@ -4,38 +4,38 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft } from "lucide-react";
-import { AuthApiService } from "../services/authservice";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from "sonner";
 
 interface LoginPageProps {
   onNavigate: (page: string) => void;
 }
 
 export function LoginPage({ onNavigate }: LoginPageProps) {
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
     try {
-      const res = await AuthApiService.login({
-        email: formData.email,
-        password: formData.password,
-      });
+      const result = await login(formData.email, formData.password);
 
-      if (!res.success) {
-        alert(res.message || "Credenciales incorrectas");
-        return;
+      if (result.success) {
+        toast.success("Inicio de sesión exitoso");
+        onNavigate("dashboard");
+      } else {
+        toast.error(result.message || "Credenciales incorrectas");
       }
-
-      localStorage.setItem("user", JSON.stringify(res.data));
-
-      alert("Inicio de sesión exitoso");
-      onNavigate("dashboard");
     } catch (error: any) {
-      alert(error.message || "Error al iniciar sesión");
+      toast.error(error.message || "Error al iniciar sesión");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,6 +64,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="border-gray-300"
+                disabled={isLoading}
               />
             </div>
 
@@ -76,14 +77,16 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="border-gray-300"
+                disabled={isLoading}
               />
             </div>
 
             <Button
               type="submit"
               className="w-full bg-[#E86C4B] hover:bg-[#d45a39] text-white"
+              disabled={isLoading}
             >
-              Iniciar sesión
+              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
 
             <div className="text-center">
@@ -93,6 +96,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   type="button"
                   onClick={() => onNavigate('register')}
                   className="text-[#0A4E6A] hover:underline"
+                  disabled={isLoading}
                 >
                   Regístrate aquí
                 </button>
